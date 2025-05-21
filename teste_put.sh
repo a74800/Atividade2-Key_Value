@@ -1,7 +1,7 @@
 #!/bin/bash
 
-URL="http://localhost:8080/store"  # Endpoint correto
-NUM_REQUESTS=20                    # Número de pedidos que queres enviar
+URL="http://localhost:8089/store"  # Endpoint correto
+NUM_REQUESTS=10000                    # Número de pedidos que queres enviar
 
 for i in $(seq 1 $NUM_REQUESTS)
 do
