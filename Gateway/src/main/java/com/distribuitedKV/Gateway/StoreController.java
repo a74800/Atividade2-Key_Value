@@ -14,6 +14,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
+import javax.sql.DataSource;
+import java.sql.Connection;
 
 
 @RestController
@@ -27,6 +31,23 @@ public class StoreController {
     public StoreController(ChaveValorRepository repositorio, RabbitTemplate rabbitTemplate) {
         this.repositorio = repositorio;
         this.rabbitTemplate = rabbitTemplate;
+    }
+
+    @Autowired
+    private DataSource dataSource;
+
+    @Autowired
+    private RedisTemplate<String, String> redisTemplate;
+
+    @GetMapping("/health")
+    public ResponseEntity<String> healthCheck() {
+        try (Connection conn = dataSource.getConnection()) {
+            // Testa ligação ao Redis (simples leitura)
+            redisTemplate.opsForValue().get("verificacao-health");
+            return ResponseEntity.ok("✅ Serviço operacional: DB + Redis OK");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("❌ Falha de saúde: " + e.getMessage());
+        }
     }
 
     @PutMapping
@@ -83,4 +104,12 @@ public class StoreController {
         }
         return ResponseEntity.ok().body(resultado);
     }
+
+    @Cacheable(value = "store", key = "'verificacao-cache'")
+    @GetMapping("/cache-check")
+    public String verificarCache() {
+        System.out.println("⚠️ MÉTODO EXECUTADO (sem cache hit)");
+        return "valor da cache";
+    }
+
 }
