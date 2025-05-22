@@ -8,7 +8,7 @@ import csv
 from collections import deque
 
 # ⚙️ Configurações
-API_URL = "http://localhost:8070/store"
+API_URL = "http://localhost:8000/store"
 NUM_PEDIDOS_TOTAIS = 20000  # 100k PUT + 100k GET
 NUM_UTILIZADORES = 100
 CHAVES_GERADAS = deque()

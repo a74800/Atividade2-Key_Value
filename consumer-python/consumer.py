@@ -28,28 +28,49 @@ async def process_message(message: aio_pika.IncomingMessage):
     global pool, redis
     try:
         data = json.loads(message.body.decode())
+        op = data.get("op", "put")  # default = put
         key = data.get("key")
         value = data.get("value")
-        print(f"[✉] Mensagem recebida: {key} → {value}")
 
-        # PostgreSQL via pool
-        async with pool.acquire() as conn:
-            await conn.execute("""
-                INSERT INTO chave_valor (key, value)
-                VALUES ($1, $2)
-                ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
-            """, key, value)
-        print(f"[✔] Gravado no PostgreSQL: {key}")
+        if op == "put":
+            print(f"[✉ PUT] {key} → {value}")
 
-        # Redis cluster
-        await redis.set(key, value)
-        print(f"[🧠] Atualizado na cache Redis: {key}")
+            async with pool.acquire() as conn:
+                await conn.execute("""
+                    INSERT INTO chave_valor (key, value)
+                    VALUES ($1, $2)
+                    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+                """, key, value)
+            await redis.set(key, value)
+            print(f"[✔] Atualizado: DB + Redis [{key}]")
+
+        elif op == "delete":
+            print(f"[✉ DELETE] {key}")
+            async with pool.acquire() as conn:
+                exists = await conn.fetchval(
+                    "SELECT EXISTS (SELECT 1 FROM chave_valor WHERE key = $1)", key
+                )
+
+            if not exists:
+                print(f"[↩️] Chave {key} ainda não existe na BD. A reenviar para a queue...")
+                await message.nack(requeue=True)
+                return
+
+            # Se existir, apagar
+            async with pool.acquire() as conn:
+                await conn.execute("DELETE FROM chave_valor WHERE key = $1", key)
+            await redis.delete(key)
+            print(f"[🗑️] Apagado: DB + Redis [{key}]")
+
+        else:
+            print(f"[❓] Operação desconhecida: {op}")
 
         await message.ack()
 
     except Exception as e:
         print(f"[⚠️] Erro ao processar mensagem. Reenviando... Erro: {e}")
         await message.nack(requeue=True)
+
 
 async def wait_for_rabbitmq():
     while True:
