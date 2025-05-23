@@ -4,7 +4,7 @@ import aio_pika
 import asyncpg
 from redis.asyncio.cluster import RedisCluster, ClusterNode
 
-RABBITMQ_URL = "amqp://guest:guest@rabbitmq/"
+RABBITMQ_URL = "amqp://guest:guest@haproxy-rabbitmq/"
 QUEUE_NAME = "store-events"
 
 DB_CONFIG = {
@@ -91,8 +91,18 @@ async def main():
 
     # Criar cliente Redis
     redis = RedisCluster(startup_nodes=REDIS_NODES, decode_responses=True)
-    await redis.initialize()
-    print("✅ RedisCluster conectado")
+
+    for i in range(10):
+        try:
+            await redis.initialize()
+            print("✅ RedisCluster conectado")
+            break
+        except Exception as e:
+            print(f"⏳ Tentativa {i+1}/10 - A aguardar Redis Cluster... {e}")
+            await asyncio.sleep(5)
+    else:
+        raise RuntimeError("❌ Falha ao conectar ao Redis Cluster após 10 tentativas.")
+
 
     # Aguardar RabbitMQ
     connection = await wait_for_rabbitmq()

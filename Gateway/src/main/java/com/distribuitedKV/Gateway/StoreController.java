@@ -52,11 +52,13 @@ public class StoreController {
 
     @PutMapping
     @Operation(summary = "Guarda ou atualiza uma chave-valor")
-    public ResponseEntity<String> guardar(@RequestBody Mensagem mensagem) {
-        rabbitTemplate.convertAndSend(RabbitMQConfig.STORE_QUEUE, mensagem);
-        return ResponseEntity.accepted().body("Mensagem aceite para: " + mensagem.getKey());
-    }
+    public String guardar(@RequestBody Mensagem mensagem) throws JsonProcessingException {
+//        ObjectMapper mapper = new ObjectMapper();
+//        String json = mapper.writeValueAsString(mensagem);
 
+        rabbitTemplate.convertAndSend(RabbitMQConfig.STORE_QUEUE, mensagem);
+        return mensagem.getValue();
+    }
 
 //    @PostMapping
 //    @Operation(summary = "Cria uma nova chave-valor (se ainda não existir)")
@@ -74,20 +76,20 @@ public class StoreController {
 
 
 
-@GetMapping("/{key}")
-public String ler(@PathVariable String key) {
-    try {
-        return repositorio.findById(key)
-                .map(ChaveValor::getValue)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Chave não encontrada"));
-    } catch (ResponseStatusException e) {
-        throw e; // 404 ou outro já tratado
-    } catch (Exception e) {
-        // Log opcional: e.printStackTrace();
-        throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Erro inesperado: " + e.getMessage());
+    @Cacheable(value = "store", key = "#key", unless = "#result == null || #result == 'NÃO ENCONTRADO'")
+    @GetMapping("/{key}")
+    public String ler(@PathVariable String key) {
+        try {
+            return repositorio.findById(key)
+                    .map(ChaveValor::getValue)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Chave não encontrada"));
+        } catch (ResponseStatusException e) {
+            throw e; // 404 ou outro já tratado
+        } catch (Exception e) {
+            // Log opcional: e.printStackTrace();
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Erro inesperado: " + e.getMessage());
+        }
     }
-}
-
 
 
     @DeleteMapping("/{key}")

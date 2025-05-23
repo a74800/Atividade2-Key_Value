@@ -23,7 +23,6 @@ services:
     restart: always
     depends_on:
       - haproxy
-      - rabbitmq
     networks:
       - backend
     environment:
@@ -32,6 +31,8 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_SHOW_SQL: "true"
       SPRING_DATA_REDIS_CLUSTER_NODES: redis-node-1:6379,redis-node-2:6379,redis-node-3:6379
+      SPRING_RABBITMQ_HOST: haproxy-rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
 
   api-2:
     build:
@@ -40,7 +41,6 @@ services:
     restart: always
     depends_on:
       - haproxy
-      - rabbitmq
     networks:
       - backend
     environment:
@@ -49,6 +49,8 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_SHOW_SQL: "true"
       SPRING_DATA_REDIS_CLUSTER_NODES: redis-node-1:6379,redis-node-2:6379,redis-node-3:6379
+      SPRING_RABBITMQ_HOST: haproxy-rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
 
   api-3:
     build:
@@ -57,7 +59,6 @@ services:
     restart: always
     depends_on:
       - haproxy
-      - rabbitmq
     networks:
       - backend
     environment:
@@ -66,6 +67,8 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_SHOW_SQL: "true"
       SPRING_DATA_REDIS_CLUSTER_NODES: redis-node-1:6379,redis-node-2:6379,redis-node-3:6379
+      SPRING_RABBITMQ_HOST: haproxy-rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
 
   consumer-1:
     build:
@@ -73,7 +76,7 @@ services:
     container_name: python-consumer-1
     restart: always
     depends_on:
-      - rabbitmq
+      - haproxy-rabbitmq
       - haproxy
     networks:
       - backend
@@ -84,7 +87,7 @@ services:
     container_name: python-consumer-2
     restart: always
     depends_on:
-      - rabbitmq
+      - haproxy-rabbitmq
       - haproxy
     networks:
       - backend
@@ -95,7 +98,7 @@ services:
     container_name: python-consumer-3
     restart: always
     depends_on:
-      - rabbitmq
+      - haproxy-rabbitmq
       - haproxy
     networks:
       - backend
@@ -149,7 +152,6 @@ services:
     networks:
       - backend
 
-
   redis-init:
     image: redis:7
     depends_on:
@@ -163,16 +165,86 @@ services:
     networks:
       - backend
 
-  rabbitmq:
+  rabbitmq-node1:
     image: rabbitmq:3.11-management
-    container_name: rabbitmq
-    restart: always
+    hostname: rabbitmq-node1
+    container_name: rabbitmq-node1
+    environment:
+      RABBITMQ_ERLANG_COOKIE: "supersecretcookie"
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
     ports:
       - "5672:5672"
       - "15672:15672"
+    volumes:
+      - rabbitmq-data-node1:/var/lib/rabbitmq
+    networks:
+      - backend
+
+  rabbitmq-node2:
+    image: rabbitmq:3.11-management
+    hostname: rabbitmq-node2
+    container_name: rabbitmq-node2
     environment:
+      RABBITMQ_ERLANG_COOKIE: "supersecretcookie"
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq-data-node2:/var/lib/rabbitmq
+    networks:
+      - backend
+    depends_on:
+      - rabbitmq-node1
+
+  rabbitmq-node3:
+    image: rabbitmq:3.11-management
+    hostname: rabbitmq-node3
+    container_name: rabbitmq-node3
+    environment:
+      RABBITMQ_ERLANG_COOKIE: "supersecretcookie"
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq-data-node3:/var/lib/rabbitmq
+    networks:
+      - backend
+    depends_on:
+      - rabbitmq-node1
+
+  rabbitmq-cluster-init:
+    image: rabbitmq:3.11-management
+    container_name: rabbitmq-cluster-init
+    depends_on:
+      - rabbitmq-node1
+      - rabbitmq-node2
+      - rabbitmq-node3
+    entrypoint: >
+      /bin/sh -c "
+        echo '🟡 A aguardar RabbitMQ...';
+        sleep 15;
+        rabbitmqctl -n rabbit@rabbitmq-node2 stop_app;
+        rabbitmqctl -n rabbit@rabbitmq-node2 join_cluster rabbit@rabbitmq-node1;
+        rabbitmqctl -n rabbit@rabbitmq-node2 start_app;
+        rabbitmqctl -n rabbit@rabbitmq-node3 stop_app;
+        rabbitmqctl -n rabbit@rabbitmq-node3 join_cluster rabbit@rabbitmq-node1;
+        rabbitmqctl -n rabbit@rabbitmq-node3 start_app;
+        rabbitmqctl -n rabbit@rabbitmq-node1 set_policy quorum ".*" '{\"queue-type\":\"quorum\"}' --priority 0 --apply-to queues;
+        echo '✅ Cluster RabbitMQ com Quorum Queues criado.';
+      "
+    networks:
+      - backend
+
+  haproxy-rabbitmq:
+    image: haproxy:2.9
+    container_name: haproxy-rabbitmq
+    ports:
+      - "5673:5672"
+    volumes:
+      - ./haproxy-rabbitmq.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on:
+      - rabbitmq-node1
+      - rabbitmq-node2
+      - rabbitmq-node3
     networks:
       - backend
 
@@ -241,6 +313,9 @@ volumes:
   crdb1-data:
   crdb2-data:
   crdb3-data:
+  rabbitmq-data-node1:
+  rabbitmq-data-node2:
+  rabbitmq-data-node3:
 
 networks:
   backend:
