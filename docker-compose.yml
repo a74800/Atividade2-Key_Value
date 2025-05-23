@@ -76,6 +76,7 @@ services:
     container_name: python-consumer-1
     restart: always
     depends_on:
+      - rabbitmq-init-queue
       - haproxy-rabbitmq
       - haproxy
     networks:
@@ -87,6 +88,7 @@ services:
     container_name: python-consumer-2
     restart: always
     depends_on:
+      - rabbitmq-init-queue
       - haproxy-rabbitmq
       - haproxy
     networks:
@@ -98,6 +100,7 @@ services:
     container_name: python-consumer-3
     restart: always
     depends_on:
+      - rabbitmq-init-queue
       - haproxy-rabbitmq
       - haproxy
     networks:
@@ -214,25 +217,66 @@ services:
   rabbitmq-cluster-init:
     image: rabbitmq:3.11-management
     container_name: rabbitmq-cluster-init
+    environment:
+      RABBITMQ_ERLANG_COOKIE: "supersecretcookie"
     depends_on:
       - rabbitmq-node1
       - rabbitmq-node2
       - rabbitmq-node3
-    entrypoint: >
-      /bin/sh -c "
-        echo '🟡 A aguardar RabbitMQ...';
-        sleep 15;
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        echo 'A aguardar RabbitMQ nodes...';
+        
+        until rabbitmqctl -n rabbit@rabbitmq-node1 status > /dev/null 2>&1; do
+          echo 'A esperar pelo rabbitmq-node1...';
+          sleep 5;
+        done;
+
+        until rabbitmqctl -n rabbit@rabbitmq-node2 status > /dev/null 2>&1; do
+          echo 'A esperar pelo rabbitmq-node2...';
+          sleep 5;
+        done;
+
+        until rabbitmqctl -n rabbit@rabbitmq-node3 status > /dev/null 2>&1; do
+          echo 'A esperar pelo rabbitmq-node3...';
+          sleep 5;
+        done;
+
+        echo 'A formar o cluster...';
+
         rabbitmqctl -n rabbit@rabbitmq-node2 stop_app;
+        rabbitmqctl -n rabbit@rabbitmq-node2 reset;
         rabbitmqctl -n rabbit@rabbitmq-node2 join_cluster rabbit@rabbitmq-node1;
         rabbitmqctl -n rabbit@rabbitmq-node2 start_app;
+
         rabbitmqctl -n rabbit@rabbitmq-node3 stop_app;
+        rabbitmqctl -n rabbit@rabbitmq-node3 reset;
         rabbitmqctl -n rabbit@rabbitmq-node3 join_cluster rabbit@rabbitmq-node1;
         rabbitmqctl -n rabbit@rabbitmq-node3 start_app;
-        rabbitmqctl -n rabbit@rabbitmq-node1 set_policy quorum ".*" '{\"queue-type\":\"quorum\"}' --priority 0 --apply-to queues;
-        echo '✅ Cluster RabbitMQ com Quorum Queues criado.';
-      "
+
+        echo 'Cluster RabbitMQ com os 3 nós unido.';
+
+        echo 'Aplicar política de filas quorum...';
+        rabbitmqctl -n rabbit@rabbitmq-node1 set_policy quorum ".*" '{"queue-type":"quorum"}' --priority 0 --apply-to queues;
+
+        echo 'Cluster RabbitMQ com Quorum Queues configurado com sucesso.';
     networks:
       - backend
+
+  rabbitmq-init-queue:
+    build:
+      context: ./rabbitmq-init-queue
+    restart: on-failure
+    container_name: rabbitmq-init-queue
+    environment:
+      RABBITMQ_ERLANG_COOKIE: "supersecretcookie"
+    depends_on:
+      - rabbitmq-cluster-init
+    networks:
+      - backend
+
 
   haproxy-rabbitmq:
     image: haproxy:2.9

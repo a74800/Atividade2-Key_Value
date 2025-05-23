@@ -1,3 +1,4 @@
 aio-pika==9.4.0
 asyncpg==0.29.0
 redis[asyncio]==5.0.1
+tenacity==8.2.3
