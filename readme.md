@@ -91,8 +91,8 @@ HTTP Response Code
 ### Como correr
 
 ```bash
-git clone https://github.com/a74800/<repositorio>.git
-cd <repositorio>
+git clone https://github.com/a74800/Atividade2-Key_Value
+cd Atividade2-Key_Value
 chmod +x start.sh
 ./start.sh
 ```
