@@ -14,7 +14,28 @@ A aplicação segue uma arquitetura baseada em **microserviços**, integrando:
 
 ## Arquitetura
 
-- todo
+```mermaid
+graph TD
+  Client -->|HTTP GET / PUT / DELETE| Nginx["Nginx (Load Balancer)"]
+
+    Nginx --> API["API"]
+
+
+  API -- GET cache --> Redis["Redis"]
+  Redis -- cache miss --> CockroachDBLB
+
+    API -- PUT / DELETE --> RabbitMQLB["RabbitMQ LB (HAProxy)"]
+    RabbitMQLB --> RabbitMQ["RabbitMQ"]
+
+
+    RabbitMQLB -- consume --> Worker["Worker"]
+
+
+  Worker -- write --> CockroachDBLB["CockroachDB LB (HAProxy)"]
+  CockroachDBLB --> CockroachDB["CockroachDB"]
+
+  Worker -- update --> Redis
+``` 
 
 ### Componentes:
 
@@ -28,7 +49,7 @@ A aplicação segue uma arquitetura baseada em **microserviços**, integrando:
 
 ---
 
-## 📖 Manual da API
+## Manual da API
 
 O manual interativo da API (Swagger UI) pode ser acedido em:  
 [`http://localhost:8000/swagger-ui/index.html`](http://localhost:8000/swagger-ui/index.html)
@@ -48,9 +69,7 @@ O manual interativo da API (Swagger UI) pode ser acedido em:
 
 ```json
 {
-  "data": {
     "value": "valor123"
-  }
 }
 ```
 
@@ -58,7 +77,7 @@ O manual interativo da API (Swagger UI) pode ser acedido em:
 
 ### `DELETE /store/exemplo`
 
-???
+HTTP Response Code
 
 ---
 
@@ -84,7 +103,7 @@ chmod +x start.sh
 
 ---
 
-## 📏 Limites e Capacidades
+## Capacidades
 
 | Componente    | Capacidade                                  |
 | ------------- | ------------------------------------------- |
@@ -96,7 +115,7 @@ chmod +x start.sh
 
 ---
 
-## 📊 Testes de Carga
+## Testes de Carga
 
 Executado com a ferramenta `jmeter`:
 
