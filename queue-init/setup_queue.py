@@ -41,7 +41,7 @@ async def wait_for_rabbitmq():
             )
             
             # Se chegou aqui, a conexão foi bem sucedida
-            logger.info("✅ Conectado ao RabbitMQ com sucesso")
+            logger.info("Conectado ao RabbitMQ com sucesso")
             return connection
             
         except Exception as e:
@@ -56,7 +56,7 @@ async def wait_for_rabbitmq():
 
 async def setup_queue():
     """Função principal para configurar a queue."""
-    logger.info("🔄 Iniciando configuração da queue...")
+    logger.info("Iniciando configuração da queue...")
     
     try:
         # Esperar RabbitMQ estar pronto
@@ -73,24 +73,24 @@ async def setup_queue():
             }
         )
         
-        logger.info(f"✅ Queue '{QUEUE_NAME}' criada com sucesso como Quorum Queue")
+        logger.info(f"Queue '{QUEUE_NAME}' criada com sucesso como Quorum Queue")
         
         # Manter a conexão aberta por um tempo para garantir que a queue foi criada
         await asyncio.sleep(5)
         
         # Fechar a conexão
         await connection.close()
-        logger.info("✅ Conexão fechada com sucesso")
+        logger.info("Conexão fechada com sucesso")
         
     except Exception as e:
-        logger.error(f"❌ Erro ao configurar queue: {str(e)}")
+        logger.error(f"Erro ao configurar queue: {str(e)}")
         raise
 
 if __name__ == "__main__":
     try:
         asyncio.run(setup_queue())
     except KeyboardInterrupt:
-        logger.info("🛑 Interrompido pelo utilizador")
+        logger.info("Interrompido pelo utilizador")
     except Exception as e:
-        logger.error(f"❌ Erro fatal: {str(e)}")
+        logger.error(f"Erro fatal: {str(e)}")
         exit(1) 
