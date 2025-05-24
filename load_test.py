@@ -7,20 +7,20 @@ import time
 import csv
 from collections import deque
 
-#Configurações
+# ⚙️ Configurações
 API_URL = "http://localhost:8000/store"
 NUM_PEDIDOS_TOTAIS = 20000  # 100k PUT + 100k GET
 NUM_UTILIZADORES = 100
 CHAVES_GERADAS = deque()
 
-#Logging
+# 📋 Logging
 logging.basicConfig(
     level=logging.INFO,
     format='[%(asctime)s] %(levelname)s - %(message)s',
     datefmt='%H:%M:%S',
 )
 
-#Métricas
+# 📊 Métricas
 metricas = {
     "put_sucesso": 0,
     "put_erro": 0,

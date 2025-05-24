@@ -227,24 +227,24 @@ services:
       - /bin/sh
       - -c
       - |
-        echo 'A aguardar RabbitMQ nodes...';
+        echo '🟡 A aguardar RabbitMQ nodes...';
         
         until rabbitmqctl -n rabbit@rabbitmq-node1 status > /dev/null 2>&1; do
-          echo 'A esperar pelo rabbitmq-node1...';
+          echo '🔁 A esperar pelo rabbitmq-node1...';
           sleep 5;
         done;
 
         until rabbitmqctl -n rabbit@rabbitmq-node2 status > /dev/null 2>&1; do
-          echo 'A esperar pelo rabbitmq-node2...';
+          echo '🔁 A esperar pelo rabbitmq-node2...';
           sleep 5;
         done;
 
         until rabbitmqctl -n rabbit@rabbitmq-node3 status > /dev/null 2>&1; do
-          echo 'A esperar pelo rabbitmq-node3...';
+          echo '🔁 A esperar pelo rabbitmq-node3...';
           sleep 5;
         done;
 
-        echo 'A formar o cluster...';
+        echo '🔗 A formar o cluster...';
 
         rabbitmqctl -n rabbit@rabbitmq-node2 stop_app;
         rabbitmqctl -n rabbit@rabbitmq-node2 reset;
@@ -256,12 +256,12 @@ services:
         rabbitmqctl -n rabbit@rabbitmq-node3 join_cluster rabbit@rabbitmq-node1;
         rabbitmqctl -n rabbit@rabbitmq-node3 start_app;
 
-        echo 'Cluster RabbitMQ com os 3 nós unido.';
+        echo '✅ Cluster RabbitMQ com os 3 nós unido.';
 
-        echo 'Aplicar política de filas quorum...';
+        echo '🔧 Aplicar política de filas quorum...';
         rabbitmqctl -n rabbit@rabbitmq-node1 set_policy quorum ".*" '{"queue-type":"quorum"}' --priority 0 --apply-to queues;
 
-        echo 'Cluster RabbitMQ com Quorum Queues configurado com sucesso.';
+        echo '✅ Cluster RabbitMQ com Quorum Queues configurado com sucesso.';
     networks:
       - backend
 

@@ -43,7 +43,7 @@ async def process_message(message: aio_pika.IncomingMessage):
         value = data.get("value")
 
         if op == "put":
-            logger.info(f"[PUT] {key} → {value}")
+            logger.info(f"[✉ PUT] {key} → {value}")
 
             async with pool.acquire() as conn:
                 await conn.execute("""
@@ -55,14 +55,14 @@ async def process_message(message: aio_pika.IncomingMessage):
             logger.info(f"[✔] Atualizado: DB + Redis [{key}]")
 
         elif op == "delete":
-            logger.info(f"[DELETE] {key}")
+            logger.info(f"[✉ DELETE] {key}")
             async with pool.acquire() as conn:
                 exists = await conn.fetchval(
                     "SELECT EXISTS (SELECT 1 FROM chave_valor WHERE key = $1)", key
                 )
 
             if not exists:
-                logger.info(f"Chave {key} ainda não existe na BD. A reenviar para a queue...")
+                logger.info(f"[↩️] Chave {key} ainda não existe na BD. A reenviar para a queue...")
                 await message.nack(requeue=True)
                 return
 
@@ -70,15 +70,15 @@ async def process_message(message: aio_pika.IncomingMessage):
             async with pool.acquire() as conn:
                 await conn.execute("DELETE FROM chave_valor WHERE key = $1", key)
             await redis.delete(key)
-            logger.info(f"Apagado: DB + Redis [{key}]")
+            logger.info(f"[🗑️] Apagado: DB + Redis [{key}]")
 
         else:
-            logger.warning(f"Operação desconhecida: {op}")
+            logger.warning(f"[❓] Operação desconhecida: {op}")
 
         await message.ack()
 
     except Exception as e:
-        logger.error(f" Erro ao processar mensagem: {e}")
+        logger.error(f"[⚠️] Erro ao processar mensagem: {e}")
         await message.nack(requeue=True)
 
 @retry(
@@ -96,10 +96,10 @@ async def connect_to_rabbitmq():
                 "connection_name": f"consumer-{asyncio.current_task().get_name()}"
             }
         )
-        logger.info("Conectado ao RabbitMQ")
+        logger.info("✅ Conectado ao RabbitMQ")
         return connection
     except Exception as e:
-        logger.error(f"Erro ao conectar ao RabbitMQ: {e}")
+        logger.error(f"❌ Erro ao conectar ao RabbitMQ: {e}")
         raise
 
 async def main():
@@ -108,9 +108,9 @@ async def main():
     # Criar pool de PostgreSQL
     try:
         pool = await asyncpg.create_pool(**DB_CONFIG, min_size=2, max_size=10)
-        logger.info("Pool de PostgreSQL criado")
+        logger.info("✅ Pool de PostgreSQL criado")
     except Exception as e:
-        logger.error(f"Erro ao criar pool PostgreSQL: {e}")
+        logger.error(f"❌ Erro ao criar pool PostgreSQL: {e}")
         return
 
     # Criar cliente Redis
@@ -118,13 +118,13 @@ async def main():
     for i in range(10):
         try:
             await redis.initialize()
-            logger.info("RedisCluster conectado")
+            logger.info("✅ RedisCluster conectado")
             break
         except Exception as e:
-            logger.error(f"Tentativa {i+1}/10 - A aguardar Redis Cluster... {e}")
+            logger.error(f"⏳ Tentativa {i+1}/10 - A aguardar Redis Cluster... {e}")
             await asyncio.sleep(5)
     else:
-        logger.error("Falha ao conectar ao Redis Cluster após 10 tentativas.")
+        logger.error("❌ Falha ao conectar ao Redis Cluster após 10 tentativas.")
         return
 
     while True:
@@ -136,17 +136,17 @@ async def main():
             # Conectar à queue existente (não declarar)
             queue = await channel.get_queue("store-events", ensure=False)
 
-            logger.info("A aguardar mensagens... (CTRL+C para sair)")
+            logger.info("[*] A aguardar mensagens... (CTRL+C para sair)")
             await queue.consume(process_message)
 
             # Manter a conexão viva
             await asyncio.Future()
 
         except KeyboardInterrupt:
-            logger.info("Interrompido pelo utilizador")
+            logger.info("🛑 Interrompido pelo utilizador")
             break
         except Exception as e:
-            logger.error(f"Erro na conexão RabbitMQ: {e}")
+            logger.error(f"❌ Erro na conexão RabbitMQ: {e}")
             await asyncio.sleep(5)  # Esperar antes de tentar reconectar
         finally:
             if 'connection' in locals():
@@ -156,4 +156,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info(" Interrompido pelo utilizador")
+        logger.info("🛑 Interrompido pelo utilizador")
