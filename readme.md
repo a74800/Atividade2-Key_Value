@@ -233,4 +233,4 @@ Com mais tempo, poderia ser interessante:
 * [Redis Cluster](https://redis.io/)
 * [RabbitMQ](https://www.rabbitmq.com/)
 * [CockroachDB](https://www.cockroachlabs.com/)
-* Parte da documentação e código teve apoio de modelos de linguagem IA (ChatGPT)
+* Parte da documentação e código teve apoio de modelos de linguagem IA (ChatGPT/GitHub Copilot)
